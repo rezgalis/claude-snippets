@@ -1,0 +1,481 @@
+<title>Idea Board</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<!--
+  NOTE FOR CLAUDE (from the board's owner): this board's cards live in this artifact's database, not in this HTML.
+  Before adding, updating, linking or picking up an idea, read the document config/instructions
+  (ArtifactData tool, action get, collection "config", doc_id "instructions", url = this artifact's link)
+  and follow it. Cards are in collection "ideas"; columns, nextNum and the board's own link are in config/board.
+  Setting up: publish this file with capabilities {"db":{"rules":[{"path":"","read":"admin","write":"owner"}]}};
+  the owner then taps "Set up board" on the page, which writes config/board and config/instructions.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: pinboard grid, statuses as columns, notes tinted by column; phone = status tabs; tags filter */
+:root{
+  --bg:#E9ECEF; --board:#DDE2E7; --fg:#15191E; --muted:#5B6672; --line:#C6CDD4; --accent:#2F55D4; --chip:#FFFFFF;
+  --n-sun:#FBE68C; --n-mint:#BFEBD3; --n-sky:#C3DDF8; --n-rose:#F8C9CF; --n-lilac:#DCD0F6; --n-sand:#EBDDC6; --n-peach:#FAD3B5; --n-teal:#B5E3E0;
+  --s-sun:#F2C94C; --s-mint:#5FCB93; --s-sky:#6FAEEB; --s-rose:#EE8592; --s-lilac:#A98BE6; --s-sand:#CDB084; --s-peach:#F2A06B; --s-teal:#5DC4BD;
+  --ok:#1F8A4C; --danger:#C2362B; --note-fg:#1B1F24; --note-muted:#4A525B; --shadow:0 1px 0 rgba(20,25,30,.08),0 4px 10px -6px rgba(20,25,30,.35);
+  --f-display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;
+  --f-body:"Instrument Sans",ui-sans-serif,system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121519; --board:#191D22; --fg:#E8ECF0; --muted:#8C97A3; --line:#2A3038; --accent:#7D9BFF; --chip:#20252C;
+  --n-sun:#3B3518; --n-mint:#1A3428; --n-sky:#1A2C40; --n-rose:#3C2027; --n-lilac:#2C2541; --n-sand:#352D21; --n-peach:#3D2A1C; --n-teal:#173534;
+  --s-sun:#8A7420; --s-mint:#2E7D55; --s-sky:#2D5F93; --s-rose:#8E3443; --s-lilac:#5E4A99; --s-sand:#7A6440; --s-peach:#8A5030; --s-teal:#24706B;
+  --ok:#4CC27F; --danger:#F07065; --note-fg:#ECEFF2; --note-muted:#A9B2BC; --shadow:0 1px 0 rgba(0,0,0,.4),0 6px 14px -8px rgba(0,0,0,.7); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121519; --board:#191D22; --fg:#E8ECF0; --muted:#8C97A3; --line:#2A3038; --accent:#7D9BFF; --chip:#20252C;
+  --n-sun:#3B3518; --n-mint:#1A3428; --n-sky:#1A2C40; --n-rose:#3C2027; --n-lilac:#2C2541; --n-sand:#352D21; --n-peach:#3D2A1C; --n-teal:#173534;
+  --s-sun:#8A7420; --s-mint:#2E7D55; --s-sky:#2D5F93; --s-rose:#8E3443; --s-lilac:#5E4A99; --s-sand:#7A6440; --s-peach:#8A5030; --s-teal:#24706B;
+  --ok:#4CC27F; --danger:#F07065; --note-fg:#ECEFF2; --note-muted:#A9B2BC; --shadow:0 1px 0 rgba(0,0,0,.4),0 6px 14px -8px rgba(0,0,0,.7); color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.45}
+.wrap{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px;max-width:1500px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px 40px;min-width:0;padding-right:11px}
+header>div{min-width:0}
+h1{font-family:var(--f-display);font-weight:700;font-size:clamp(36px,6vw,56px);letter-spacing:-.025em;margin:0;line-height:1}
+.sub{color:var(--muted);font-size:15px;margin-top:8px}
+.stats{display:flex;gap:24px;font-family:var(--f-mono);font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;padding-bottom:2px}
+.stats b{color:var(--fg);font-weight:500;font-size:22px;display:block;line-height:1.1}
+.filters{display:flex;flex-wrap:wrap;gap:6px}
+.chipbtn{font:500 13px var(--f-body);border:1px solid var(--line);background:var(--chip);color:var(--fg);border-radius:999px;padding:5px 12px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.chipbtn[aria-pressed="true"]{border-color:var(--fg);background:var(--fg);color:var(--bg)}
+.chipbtn:focus-visible,.note:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+.act{font:600 13px var(--f-body);text-decoration:none;border-radius:6px;padding:8px 14px;border:1px solid var(--line);background:var(--chip);color:var(--fg)}
+.act.primary{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+.act:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.dot{width:9px;height:9px;border-radius:2px;border:1px solid rgba(0,0,0,.15)}
+.tabs{display:none}
+.board{background:var(--board);border:1px solid var(--line);border-radius:6px;overflow-x:auto}
+.grid{display:grid;min-width:880px}
+.colhead{font:500 11px var(--f-mono);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding:12px 12px 8px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;position:sticky;top:0;background:var(--board)}
+.lanehead{grid-column:1/-1;font-family:var(--f-display);font-weight:500;font-size:15px;padding:14px 12px 2px;display:flex;align-items:center;gap:8px}
+.lanehead .cnt{font:400 12px var(--f-mono);color:var(--muted)}
+.cell{padding:8px 10px 14px;display:flex;flex-direction:column;gap:10px;border-right:1px dashed var(--line);min-width:0}
+.cell:last-child{border-right:0}
+.colname{display:inline-flex;align-items:center;gap:8px}
+.swatch{width:14px;height:14px;border-radius:4px;border:1px solid rgba(0,0,0,.18);padding:0;cursor:pointer;flex:none}
+.swatch:hover{transform:scale(1.15)}
+.swatch:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.swatch.big{width:26px;height:26px;border-radius:6px}
+.swatch.on{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--fg)}
+.palgrid{display:grid;grid-template-columns:repeat(4,26px);gap:8px}
+.palint{display:flex;flex-direction:column;gap:4px;font:500 11px var(--f-mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.palint input{width:100%;accent-color:var(--fg)}
+.palette{position:fixed;z-index:20;display:flex;flex-direction:column;gap:12px;width:154px;padding:10px;background:var(--chip);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow)}
+.cell.drop-over{background:var(--chip);box-shadow:inset 0 0 0 2px var(--accent)}
+.note.dragging{opacity:.4}
+.board .note{cursor:grab}
+.lanerow{display:contents}
+.note{display:flex;flex-direction:column;gap:6px;padding:10px 12px 10px;border-radius:2px 2px 10px 2px;color:var(--note-fg);text-decoration:none;box-shadow:var(--shadow);min-width:0;transition:transform .12s ease}
+.note{cursor:pointer}
+.note:hover{transform:translateY(-2px) rotate(-.4deg)}
+.sheet{position:fixed;inset:0;z-index:10;display:flex;justify-content:center;align-items:flex-end;background:rgba(10,12,15,.45)}
+.sheet-in{background:var(--bg);color:var(--fg);width:100%;max-width:min(1040px,92vw);max-height:calc(100% - 84px - env(safe-area-inset-top,0px));overflow-y:auto;border-radius:14px 14px 0 0;padding-block:18px calc(28px + env(safe-area-inset-bottom,0px));padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:12px;box-shadow:0 -10px 30px -10px rgba(0,0,0,.4)}
+@media (min-width:761px){.sheet{align-items:center}.sheet-in{border-radius:12px;padding-bottom:28px}}
+.sheet-band{height:8px;border-radius:4px}
+.sheet-top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px 10px;font:500 12px var(--f-mono);color:var(--muted)}
+.sheet h2 .num{color:var(--muted);font-weight:500}
+.dates{display:flex;flex-direction:column;align-items:flex-end;gap:2px;text-align:right}
+.sheet h2{font-family:var(--f-display);font-weight:700;font-size:26px;line-height:1.15;margin:0;text-wrap:balance}
+.close{font:500 13px var(--f-body);background:var(--chip);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:6px 12px;cursor:pointer}
+.meta{display:flex;flex-wrap:wrap;gap:6px}
+.meta span{font:500 12px var(--f-mono);border:1px solid var(--line);border-radius:4px;padding:2px 8px;color:var(--muted)}
+.openlink{align-self:flex-start;font:600 14px var(--f-body);text-decoration:none;background:var(--accent);color:var(--bg);border-radius:6px;padding:8px 14px}
+.setup{display:flex;flex-direction:column;align-items:center;gap:14px;max-width:520px;margin:0 auto}
+.setup label{display:flex;flex-direction:column;gap:6px;width:100%;text-align:left;font:500 12px var(--f-mono);color:var(--muted)}
+.setup input{font:400 15px var(--f-body);color:var(--fg);background:var(--chip);border:1px solid var(--line);border-radius:6px;padding:8px}
+.sheet-acts{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.openlink.ghost{background:var(--chip);color:var(--fg);border:1px solid var(--line)}
+button.openlink{border:0;cursor:pointer}
+.actgrp{display:inline-flex;align-items:center;gap:6px}
+.iconbtn{width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:6px;background:var(--chip);color:var(--fg);cursor:pointer;padding:0}
+.tipbtn{width:22px;height:22px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--muted);font:600 12px var(--f-mono);cursor:pointer;padding:0;display:inline-flex;align-items:center;justify-content:center}
+.tipbtn[aria-expanded="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.iconbtn:focus-visible,.tipbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tipbox{font-size:13px;line-height:1.5;color:var(--fg);background:var(--board);border:1px solid var(--line);border-radius:8px;padding:10px 12px;max-width:65ch}
+.sheet-acts{row-gap:10px;column-gap:16px}
+.iconbtn.ok{color:var(--ok);border-color:var(--ok)}
+.iconrow{display:inline-flex;align-items:center;gap:8px;margin-left:auto;flex-direction:row-reverse}
+.iconbtn[aria-expanded="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.delzone{border-top:1px solid var(--line);padding-top:14px;margin-top:6px;display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.delbtn{font:500 13px var(--f-body);background:transparent;color:var(--danger);border:1px solid var(--danger);border-radius:6px;padding:6px 12px;cursor:pointer}
+.delbtn.solid{background:var(--danger);color:var(--bg)}
+.delbtn:disabled{opacity:.5}
+.delbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.delq{font-size:14px;color:var(--fg)}
+.delacts{display:inline-flex;gap:8px}
+
+button.openlink.ghost{border:1px solid var(--line)}
+.openlink:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.sttext{width:100%;min-height:140px;font:400 13px var(--f-mono);color:var(--fg);background:var(--chip);border:1px solid var(--line);border-radius:6px;padding:8px}
+.brief{max-width:80ch;font-size:15px;line-height:1.55;overflow-wrap:anywhere}
+.brief h4{font:500 11px var(--f-mono);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:18px 0 4px}
+.brief p{margin:0 0 8px}
+.brief ul{margin:0 0 8px;padding-left:20px}
+.brief li{margin:2px 0}
+.edit{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;align-items:end;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--board)}
+.edit label{display:flex;flex-direction:column;gap:4px;font:500 11px var(--f-mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);min-width:0}
+.edit select,.edit input{font:400 15px var(--f-body);color:var(--fg);background:var(--chip);border:1px solid var(--line);border-radius:6px;padding:7px 8px;width:100%;min-width:0;text-transform:none;letter-spacing:0}
+.edit .wide{grid-column:1/-1}
+.edit .row{display:flex;align-items:center;gap:10px;grid-column:1/-1}
+.save{font:600 14px var(--f-body);background:var(--fg);color:var(--bg);border:0;border-radius:6px;padding:8px 16px;cursor:pointer}
+.save:disabled{opacity:.4;cursor:default}
+.savemsg{font:500 12px var(--f-mono);color:var(--muted)}
+.hasbrief{font:500 11px var(--f-mono);color:var(--note-muted)}
+.note .top{display:flex;justify-content:space-between;gap:8px;font:500 11px var(--f-mono);color:var(--note-muted)}
+.note h3{font-family:var(--f-display);font-weight:500;font-size:16px;line-height:1.2;margin:0;text-wrap:balance;overflow-wrap:anywhere}
+.note p{margin:0;font-size:13px;color:var(--note-muted);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.note .foot{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:2px}
+.kind{font:500 11px var(--f-mono);border:1px solid currentColor;border-radius:3px;padding:1px 6px;color:var(--note-fg);opacity:.85}
+.kind.none{opacity:.5;border-style:dashed}
+.tag{font-size:11px;color:var(--note-muted)}
+.tag.linked{margin-left:auto;font-family:var(--f-mono)}
+.empty{color:var(--muted);font-size:12px;font-family:var(--f-mono);padding:6px 2px}
+.state{padding:40px 20px;text-align:center;color:var(--muted)}
+.state h2{font-family:var(--f-display);font-weight:500;color:var(--fg);margin:0 0 6px;font-size:20px}
+.titlerow{position:relative;display:flex;align-items:center;gap:10px}
+.help{flex:none;width:28px;height:28px;border-radius:50%;border:1px solid var(--line);background:var(--chip);color:var(--muted);font:600 14px var(--f-body);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0}
+.help[aria-expanded="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.help:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.how{position:absolute;top:calc(100% + 10px);left:0;z-index:5;width:min(440px,calc(100vw - 32px));background:var(--chip);border:1px solid var(--line);border-radius:10px;padding:14px;box-shadow:var(--shadow);color:var(--muted);font-size:13px;display:grid;gap:8px}
+.how code{white-space:normal}
+.how code{font-family:var(--f-mono);font-size:12px;color:var(--fg);background:var(--chip);border:1px solid var(--line);border-radius:3px;padding:1px 5px}
+.list{display:none}
+@media (max-width:760px){
+  .board{display:none}
+  .tabs{display:flex;gap:4px;overflow-x:auto;padding-bottom:2px}
+  .tabs .chipbtn{flex:none}
+  .list{display:flex;flex-direction:column;gap:14px}
+  .list .lanehead{padding:4px 0 0}
+  .list .stack{display:flex;flex-direction:column;gap:10px}
+}
+@media (prefers-reduced-motion:reduce){.note{transition:none}.note:hover{transform:none}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <div class="titlerow">
+        <h1>Idea Board</h1>
+        <button class="help" id="help-btn" type="button" aria-expanded="false" aria-controls="help-pop" aria-label="How to use the board">?</button>
+        <div class="how" id="help-pop" hidden>
+          <div>Tap a note to read its brief or change its column, tags and link. To add ideas or edit briefs, ask Claude in any chat:</div>
+          <div><code>Add this to my Idea Board, column Captured, tag hardware</code></div>
+          <div><code>Pick up #3 from my Idea Board</code></div>
+          <div><code>Rewrite #5's brief with what we decided today</code></div>
+        </div>
+      </div>
+    </div>
+  </header>
+  <div class="filters" id="lanes"></div>
+  <div class="tabs" id="tabs" role="tablist"></div>
+  <div id="main"><div class="state"><h2>Loading the board…</h2><div>Ideas appear here once they're added from a chat.</div></div></div>
+  <div class="palette" id="palette" hidden role="group" aria-label="Column colour"></div>
+  <div class="sheet" id="sheet" hidden><div class="sheet-in" role="dialog" aria-modal="true" aria-labelledby="sheet-title" id="sheet-in"></div></div>
+</div>
+
+<script type="text/plain" id="default-instructions">
+This board belongs to the owner and holds ideas as cards. Follow this whenever the owner asks to add, pick up, update, link or move an idea.
+
+WHERE THINGS LIVE
+- Board artifact: the artifact this text is stored in. Its link is also in config/board.url when the owner set it.
+- Database (ArtifactData tool, the board's url): collection 'ideas' (one document per card), document 'config/board' (columns, nextNum), document 'config/instructions' (this text).
+- Always read config/board and the target card before writing. Pin every write with if_version.
+
+CARD FIELDS (collection 'ideas', doc id 'i-' + num zero-padded to 3, e.g. i-007)
+- num: integer, from config/board.nextNum. Increment nextNum in the same batch as the add.
+- title: short, specific name of the idea (not a sentence).
+- note: 1-2 lines shown on the sticky note. What it is and why it matters.
+- brief: the real content. Multi-line text, '## ' headings and '- ' bullets only. Sections in this order: Problem, Idea, Decisions so far, Open questions, Next step. Optional extra sections when useful: Constraints, Prior art, Links. Write it from the whole chat so it stands alone: future-me must be able to decide and start from the brief without opening the chat. Typically 150-500 words. Keep concrete specifics (numbers, names, chosen tools, rejected options and why).
+- status: a column id from config/board.columns (inbox=Captured, spec=Spec'ing, build=Building, shipped=Shipped, parked=Parked). Default inbox unless the owner says otherwise.
+- tags: array of short lowercase words. Reuse tags already on other cards before inventing new ones. 1-3 tags.
+- url: https link to where the detail lives (chat, project or doc). No type field: the board works it out from the link.
+- created, updated: ISO timestamps with timezone (owner is in Europe/Riga).
+- No lanes.
+
+ADDING ('add this to my Idea Board', 'board it')
+1. Read config/board and list 'ideas' (to check duplicates and existing tags).
+2. If a card for this idea already exists, say so and offer to update it instead.
+3. Link: if this chat's own session link (claude.ai/code/session_...) is visible in context, use it. Otherwise search recent chats for the right one. If none is found, add the card without a url and say so.
+4. Write the card and bump nextNum in one batch.
+5. Ask only about what is genuinely unclear (column, title). Do not ask about things you can infer.
+6. Reply with the card number and a one-line summary.
+
+PICKING UP ('pick up #N')
+- Read the card. Use the brief as the starting spec. Treat 'Decisions so far' as settled unless the owner reopens them.
+- When new decisions are made, offer to update the brief and to link this chat (or project) to the card.
+
+UPDATING
+- Change only what the owner asked for. When rewriting a brief, keep earlier decisions and add new ones; do not drop content silently.
+- Column, tags and link are also edited by the owner directly on the board, so always re-read the card first.
+- Project links cannot be seen from inside a chat: ask the owner to paste the project link, or tell them they can set it on the card.
+
+NEVER
+- Never change the board unless the owner explicitly asks.
+- Never delete a card; move it to Parked instead unless the owner says delete.
+- Never put secrets or credentials in a card.
+</script>
+<script>
+(function(){
+  var DEFAULT_CFG={columns:[{id:"inbox",label:"Captured"},{id:"spec",label:"Spec'ing"},{id:"build",label:"Building"},{id:"shipped",label:"Shipped"},{id:"parked",label:"Parked"}]};
+  var COLCOLOR={inbox:"sun",spec:"sky",build:"mint",shipped:"lilac",parked:"sand"};
+  var COLORS=["sun","mint","sky","rose","lilac","sand","peach","teal"];
+  var KIND={chat:"Chat",project:"Project",link:"Link",none:"No link"};
+  var cfg=DEFAULT_CFG, ideas=[], loaded=false, tagFilter=null, tab=null;
+  try{tagFilter=localStorage.getItem("ib.tag")||null;tab=localStorage.getItem("ib.tab")||null}catch(e){}
+  var $=function(id){return document.getElementById(id)};
+  var BOARD="", cfgKnown=false, cfgExists=false;
+  function starter(d){
+    var cols=cfg.columns||DEFAULT_CFG.columns, n=d.num!=null?d.num:d.id, url=safeUrl(d.url);
+    var col=(cols.filter(function(c){return c.id===statusOf(d)})[0]||{}).label||d.status;
+    return "Picking up idea #"+n+" from my Idea Board"+(BOARD?": "+BOARD:"")+"\n"+
+      (url?"Earlier chat: "+url+"\n":"")+
+      "Column: "+col+((d.tags||[]).length?" · tags: "+d.tags.join(", "):"")+"\n\n"+
+      "Start from the brief below. Treat the decisions as settled unless I reopen them. When we decide something new, offer to update #"+n+"'s brief on the board and link this chat to the card.\n\n"+
+      "# "+(d.title||"Untitled idea")+"\n\n"+(d.brief||d.note||"(no brief yet)");
+  }
+
+  function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+  function statusOf(d){return d.status||"inbox"}
+  function colorOf(st){var cols=cfg.columns||DEFAULT_CFG.columns;var c=cols.filter(function(x){return x.id===st})[0];if(c&&COLORS.indexOf(c.color)>=0)return c.color;if(COLCOLOR[st])return COLCOLOR[st];var i=cols.indexOf(c);return COLORS[(i<0?0:i)%COLORS.length]}
+  function intOf(st){var c=(cfg.columns||DEFAULT_CFG.columns).filter(function(x){return x.id===st})[0];var v=c&&+c.intensity;return v>0?Math.min(100,v):0}
+  function fillCss(st){var c=colorOf(st),v=intOf(st);return"background:var(--n-"+c+")"+(v?";background:color-mix(in oklab,var(--n-"+c+"),var(--s-"+c+") "+v+"%)":"")}
+  function fmtDate(s){if(!s)return"";var d=new Date(s);if(isNaN(d))return"";return d.toLocaleDateString(undefined,{day:"numeric",month:"short"})}
+  function fmtLong(s){var d=new Date(s);if(isNaN(d))return"";return d.toLocaleDateString(undefined,{day:"numeric",month:"short",year:"numeric"})}
+  function safeUrl(u){return typeof u==="string"&&/^https:\/\//.test(u)?u:null}
+
+  function allTags(){var t=[];ideas.forEach(function(d){(d.tags||[]).forEach(function(x){if(t.indexOf(x)<0)t.push(x)})});return t.sort()}
+  function noteHtml(d){
+    var color=colorOf(statusOf(d));
+    var url=safeUrl(d.url), k=kindOf(url), tag="div";
+    var attrs=' role="button" tabindex="0" draggable="true" data-open="'+esc(d.id)+'" data-color="'+color+'"';
+    var tags=(d.tags||[]).slice(0,3).map(function(t){return'<span class="tag">#'+esc(t)+'</span>'}).join("");
+    return'<'+tag+' class="note"'+attrs+' style="'+fillCss(statusOf(d))+'">'+
+      '<div class="top"><span>#'+esc(d.num!=null?d.num:d.id)+'</span><span>'+esc(fmtDate(d.updated||d.created))+'</span></div>'+
+      '<h3>'+esc(d.title||"Untitled idea")+'</h3>'+(d.note?'<p>'+esc(d.note)+'</p>':'')+
+      (tags?'<div class="foot">'+tags+'</div>':'')+'</'+tag+'>';
+  }
+  function sorted(arr){return arr.slice().sort(function(a,b){return String(b.updated||b.created||"").localeCompare(String(a.updated||a.created||""))})}
+
+  function render(){
+    var cols=cfg.columns||DEFAULT_CFG.columns, tags=allTags();
+    if(tagFilter&&tags.indexOf(tagFilter)<0)tagFilter=null;
+    if(!tab||!cols.some(function(c){return c.id===tab}))tab=cols[0].id;
+    var vis=ideas.filter(function(d){return!tagFilter||(d.tags||[]).indexOf(tagFilter)>=0});
+    $("lanes").innerHTML=tags.length?'<button class="chipbtn" id="tf-all" aria-pressed="'+(!tagFilter)+'" data-tagf="">All</button>'+
+      tags.map(function(t,i){return'<button class="chipbtn" id="tf-'+i+'" aria-pressed="'+(tagFilter===t)+'" data-tagf="'+esc(t)+'">#'+esc(t)+'</button>'}).join(""):"";
+    $("tabs").innerHTML=cols.map(function(c){var n=vis.filter(function(d){return statusOf(d)===c.id}).length;
+      return'<button class="chipbtn" role="tab" id="tab-'+esc(c.id)+'" aria-pressed="'+(tab===c.id)+'" data-tab="'+esc(c.id)+'">'+esc(c.label)+' · '+n+'</button>'}).join("");
+
+    if(!loaded){return}
+    if(cfgKnown&&!cfgExists&&DB){if(!$("setup-go"))$("main").innerHTML=setupHtml();return}
+    if(!ideas.length){$("main").innerHTML='<div class="state"><h2>No ideas yet</h2><div>After any chat, say “add this to my Idea Board” and a note appears here.</div></div>';return}
+
+    var g='<div class="board"><div class="grid" style="grid-template-columns:repeat('+cols.length+',minmax(170px,1fr))">';
+    g+=cols.map(function(c){var n=vis.filter(function(d){return statusOf(d)===c.id}).length;return'<div class="colhead"><span class="colname">'+(DB?'<button class="swatch" type="button" data-colpick="'+esc(c.id)+'" aria-label="Change colour of '+esc(c.label)+'" title="Change colour" style="'+fillCss(c.id)+'"></button>':'<span class="dot" style="display:inline-block;background:var(--n-'+colorOf(c.id)+')"></span>')+esc(c.label)+'</span><span>'+n+'</span></div>'}).join("");
+    cols.forEach(function(c){var items=sorted(vis.filter(function(d){return statusOf(d)===c.id}));
+      g+='<div class="cell" data-col="'+esc(c.id)+'">'+(items.length?items.map(noteHtml).join(""):'<div class="empty">—</div>')+'</div>'});
+    g+='</div></div>';
+    var items=sorted(vis.filter(function(d){return statusOf(d)===tab}));
+    var m='<div class="list"><div class="stack">'+(items.length?items.map(noteHtml).join(""):'<div class="empty">Nothing in this column yet</div>')+'</div></div>';
+    $("main").innerHTML=g+m;
+  }
+
+  function setupHtml(){
+    return'<div class="state setup"><h2>Set up your Idea Board</h2>'+
+      '<div>This adds the columns and the instructions Claude follows when it adds or updates your ideas. Your board stays private to you.</div>'+
+      '<label for="setup-url">This board\'s link (optional, from Share, then Copy link)<input id="setup-url" type="url" autocomplete="off" placeholder="https://claude.ai/artifact/..."></label>'+
+      '<button class="save" id="setup-go" type="button">Set up board</button><span class="savemsg" id="setup-msg" aria-live="polite"></span></div>';
+  }
+  function doSetup(){
+    if(!DB)return;var url=safeUrl($("setup-url").value.trim())||"";var text=$("default-instructions").textContent.trim();
+    $("setup-go").disabled=true;$("setup-msg").textContent="Setting up\u2026";
+    DB.doc("config/instructions").set({title:"How Claude maintains this Idea Board",version:1,text:text}).then(function(){
+      return DB.doc("config/board").set({columns:DEFAULT_CFG.columns,nextNum:1,url:url,schema:"See config/instructions for the full rules on adding and updating cards. Read it before any write."});
+    }).then(function(){},function(e){$("setup-go").disabled=false;$("setup-msg").textContent=(e&&e.code==="invalid_argument")?"Only the board's owner can set it up.":"Setup didn't finish. Try again."});
+  }
+  function briefHtml(t){
+    var out="",inList=false;
+    String(t||"").split(/\n/).forEach(function(line){
+      var s=line.trim();
+      if(/^[-*] /.test(s)){if(!inList){out+="<ul>";inList=true}out+="<li>"+esc(s.slice(2))+"</li>";return}
+      if(inList){out+="</ul>";inList=false}
+      if(!s)return;
+      if(/^#{1,4} /.test(s)){out+="<h4>"+esc(s.replace(/^#+ /,""))+"</h4>";return}
+      out+="<p>"+esc(s)+"</p>";
+    });
+    if(inList)out+="</ul>";
+    return out;
+  }
+  var lastFocus=null, DB=null, editing=null;
+  function opts(list,cur){return list.map(function(o){return'<option value="'+esc(o.id)+'"'+(o.id===cur?' selected':'')+'>'+esc(o.label)+'</option>'}).join("")}
+  function kindOf(u){if(!u)return"none";if(/\/project\//.test(u))return"project";if(/\/(chat|code\/session[^\/]*)\//.test(u)||/\/code\/session_/.test(u))return"chat";return"link"}
+  function dirty(){if(!editing)return;var d=editing;var t=$("ed-tags").value.split(",").map(function(s){return s.trim().replace(/^#/,"")}).filter(Boolean);
+    var u=$("ed-url").value.trim(), bad=u&&!safeUrl(u);
+    var ch=$("ed-status").value!==statusOf(d)||t.join(",")!==(d.tags||[]).join(",")||u!==(d.url||"");
+    $("ed-save").disabled=!ch||bad;$("ed-msg").textContent=bad?"Link must start with https://":(ch?"Unsaved changes":"");return t}
+  function save(){
+    if(!editing||!DB)return;var t=dirty();var id=editing.id;$("ed-save").disabled=true;$("ed-msg").textContent="Saving…";
+    var st=$("ed-status").value, u=$("ed-url").value.trim();
+    var patch={status:st,tags:t,url:u,updated:new Date().toISOString()};
+    DB.doc("ideas/"+id).update(patch).then(function(){
+      if(editing&&editing.id===id){ideas=ideas.map(function(x){return x.id===id?Object.assign({},x,patch):x});openSheet(id);$("ed-msg").textContent="Saved"}
+    },function(e){$("ed-save").disabled=false;$("ed-msg").textContent=(e&&e.code==="invalid_argument")?"Only the board owner can change this.":"Couldn't save. Try again."});
+  }
+  function openSheet(id){
+    var d=ideas.filter(function(x){return x.id===id})[0];if(!d)return;
+    var cols=cfg.columns||DEFAULT_CFG.columns;
+    var col=(cols.filter(function(c){return c.id===statusOf(d)})[0]||{}).label||d.status;
+    var url=safeUrl(d.url), k=kindOf(url);
+    $("sheet-in").innerHTML='<div class="sheet-band" id="sheet-band" style="'+fillCss(statusOf(d))+'"></div>'+
+      '<div class="sheet-top"><button class="close" id="sheet-close" type="button">&larr; Back</button><span class="dates">'+(d.created?'<span>created '+esc(fmtLong(d.created))+'</span>':'')+(d.updated&&d.updated!==d.created?'<span>updated '+esc(fmtLong(d.updated))+'</span>':'')+'</span></div>'+
+      '<h2 id="sheet-title"><span class="num">#'+esc(d.num!=null?d.num:d.id)+'</span> '+esc(d.title||"Untitled idea")+'</h2>'+
+      '<div class="meta"><span>'+esc(col)+'</span>'+(d.tags||[]).map(function(t){return'<span>#'+esc(t)+'</span>'}).join("")+'</div>'+
+      '<div class="sheet-acts">'+
+        '<span class="actgrp"><a class="openlink" href="'+esc("https://claude.ai/new?q="+encodeURIComponent(starter(d)))+'" target="_blank" rel="noopener">New chat</a>'+
+        '<button class="tipbtn" type="button" data-tip="new" aria-label="About New chat" aria-expanded="false">i</button></span>'+
+        (url?'<span class="actgrp"><a class="openlink ghost" href="'+esc(url)+'" target="_blank" rel="noopener">Open link</a>'+
+          '<button class="tipbtn" type="button" data-tip="open" aria-label="About Open link" aria-expanded="false">i</button></span>':'')+
+        '<span class="iconrow">'+
+        '<button class="iconbtn" id="st-copy" type="button" aria-label="Copy chat starter text" title="Copy chat starter text">'+ICON.copy+'</button>'+
+        (DB?'<button class="iconbtn" id="ed-toggle" type="button" aria-expanded="false" aria-controls="ed-panel" aria-label="Edit column, tags and link" title="Edit">'+ICON.edit+'</button>':'')+
+        '<span class="savemsg" id="st-msg" aria-live="polite"></span></span>'+
+      '</div>'+
+      (DB?'<div class="edit" id="ed-panel" hidden><label for="ed-status">Column<select id="ed-status">'+opts(cols,statusOf(d))+'</select></label>'+
+        '<label for="ed-tags">Tags<input id="ed-tags" type="text" autocomplete="off" placeholder="comma, separated" value="'+esc((d.tags||[]).join(", "))+'"></label>'+
+        '<label for="ed-url" class="wide">Link<input id="ed-url" type="url" autocomplete="off" placeholder="https://… chat, project, doc or app" value="'+esc(d.url||"")+'"></label>'+
+        '<div class="row"><button class="save" id="ed-save" type="button" disabled>Save</button><span class="savemsg" id="ed-msg" aria-live="polite"></span></div></div>'
+      :'')+
+      '<div class="tipbox" id="tipbox" hidden></div>'+
+      '<textarea class="sttext" id="st-text" readonly hidden aria-label="Chat starter text"></textarea>'+
+      '<div class="brief">'+(d.brief?briefHtml(d.brief):(d.note?'<p>'+esc(d.note)+'</p>':'<p>No brief yet.</p>'))+'</div>'+
+      (DB?'<div class="delzone" id="del-zone"><button class="delbtn" id="del-btn" type="button">Delete idea</button></div>':'');
+    editing=d;lastFocus=document.activeElement;$("sheet").hidden=false;$("sheet-close").focus();
+    Array.prototype.forEach.call(document.querySelectorAll("#sheet-in .tipbtn"),function(b){b.addEventListener("click",function(){
+      var box=$("tipbox"), open=b.getAttribute("aria-expanded")==="true";
+      Array.prototype.forEach.call(document.querySelectorAll("#sheet-in .tipbtn"),function(x){x.setAttribute("aria-expanded","false")});
+      if(open){box.hidden=true;return}
+      box.textContent=TIPS[b.getAttribute("data-tip")];box.hidden=false;b.setAttribute("aria-expanded","true");
+    })});
+    $("st-copy").addEventListener("click",function(){
+      var txt=starter(d);
+      var fail=function(){var ta=$("st-text");ta.value=txt;ta.hidden=false;ta.focus();ta.select();$("st-msg").textContent="Copy the text below, then paste it into a new chat."};
+      var btn=$("st-copy"), orig=ICON.copy;
+      var ok=function(){$("st-msg").textContent="";btn.classList.add("ok");btn.setAttribute("aria-label","Copied");
+        btn.innerHTML=ICON.check;
+        setTimeout(function(){btn.classList.remove("ok");btn.innerHTML=orig;btn.setAttribute("aria-label","Copy chat starter text")},1600)};
+      try{navigator.clipboard.writeText(txt).then(ok,fail)}catch(e){fail()}
+    });
+    if(DB)$("del-btn").addEventListener("click",function(){
+      var z=$("del-zone"), n=esc(d.num!=null?d.num:d.id);
+      z.innerHTML='<span class="delq">Delete #'+n+' for good? This can\'t be undone.</span><span class="delacts"><button class="delbtn solid" id="del-yes" type="button">Delete</button><button class="close" id="del-no" type="button">Cancel</button></span><span class="savemsg" id="del-msg" aria-live="polite"></span>';
+      $("del-no").focus();
+      $("del-no").addEventListener("click",function(){openSheet(d.id)});
+      $("del-yes").addEventListener("click",function(){
+        $("del-yes").disabled=true;
+        DB.doc("ideas/"+d.id).delete().then(function(){closeSheet()},function(e){$("del-yes").disabled=false;$("del-msg").textContent=(e&&e.code==="invalid_argument")?"Only the board owner can delete ideas.":"Couldn't delete. Try again."});
+      });
+    });
+    if(DB)$("ed-toggle").addEventListener("click",function(){
+      var p=$("ed-panel"), open=p.hidden;p.hidden=!open;this.setAttribute("aria-expanded",String(open));this.innerHTML=open?ICON.x:ICON.edit;this.setAttribute("aria-label",open?"Close editing":"Edit column, tags and link");this.title=open?"Close editing":"Edit";if(open)$("ed-status").focus();
+    });
+    if(DB){$("ed-status").addEventListener("change",dirty);$("ed-url").addEventListener("input",dirty);$("ed-tags").addEventListener("input",dirty);$("ed-save").addEventListener("click",save)}
+  }
+  function svg(d){return'<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">'+d+'</svg>'}
+  var ICON={
+    copy:svg('<rect x="5" y="5" width="9" height="9" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M11 3.5V3a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h.5" fill="none" stroke="currentColor" stroke-width="1.5"/>'),
+    edit:svg('<path d="M10.5 2.5l3 3L6 13H3v-3z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M9 4l3 3" fill="none" stroke="currentColor" stroke-width="1.5"/>'),
+    x:svg('<path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>'),
+    check:svg('<path d="M3 8.5l3.2 3L13 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>')
+  };
+  var TIPS={
+    new:"Starts a fresh chat with this idea's full brief, column, tags and links as the first message, so Claude picks up from the spec rather than the whole old conversation. Usually the cheapest way to continue. On iPhone this may open the browser; use the copy button next to it and paste into the app instead.",
+    open:"Opens the saved link: a chat, project, doc or the finished app. If it's an earlier chat, careful: Claude rereads the entire earlier conversation with every new reply, so continuing a long chat uses much more of your usage than a new chat with the brief."
+  };
+  function toggleHelp(open){$("help-pop").hidden=!open;$("help-btn").setAttribute("aria-expanded",String(open))}
+  function closeSheet(){editing=null;$("sheet").hidden=true;if(lastFocus&&lastFocus.focus)lastFocus.focus()}
+  document.addEventListener("keydown",function(e){
+    if(e.key==="Escape"&&!$("help-pop").hidden){toggleHelp(false);$("help-btn").focus();return}
+    if(e.key==="Escape"&&!$("sheet").hidden){closeSheet();return}
+    if((e.key==="Enter"||e.key===" ")&&e.target.matches&&e.target.matches("[data-open]")){e.preventDefault();openSheet(e.target.getAttribute("data-open"))}
+  });
+  document.addEventListener("click",function(e){
+    if(e.target.id==="help-btn"){toggleHelp($("help-pop").hidden);return}
+    if(!$("help-pop").hidden&&!e.target.closest("#help-pop"))toggleHelp(false);
+    if(e.target.id==="setup-go"){doSetup();return}
+    if(e.target.id==="sheet"||e.target.id==="sheet-close"){closeSheet();return}
+    var o=e.target.closest("[data-open]");if(o){openSheet(o.getAttribute("data-open"));return}
+    var b=e.target.closest("[data-tagf]");if(b){tagFilter=b.getAttribute("data-tagf")||null;try{localStorage.setItem("ib.tag",tagFilter||"")}catch(x){}render();return}
+    var t=e.target.closest("[data-tab]");if(t){tab=t.getAttribute("data-tab");try{localStorage.setItem("ib.tab",tab)}catch(x){}render()}
+  });
+
+  var pickCol=null;
+  function closePalette(){var p=$("palette");if(p)p.hidden=true;pickCol=null}
+  function renderPalette(){
+    var id=pickCol, p=$("palette"), cur=colorOf(id), v=intOf(id);
+    p.innerHTML='<div class="palgrid">'+COLORS.map(function(c){return'<button type="button" class="swatch big'+(c===cur?' on':'')+'" data-pick="'+c+'" aria-label="'+c+'" aria-pressed="'+(c===cur)+'" style="background:var(--n-'+c+')"></button>'}).join("")+'</div>'+
+      '<label class="palint" for="pal-int"><span>Intensity</span><input id="pal-int" type="range" min="0" max="100" step="5" value="'+v+'"></label>';
+    var r=$("pal-int");
+    r.addEventListener("input",function(){setCol({intensity:+r.value},false)});
+    r.addEventListener("change",function(){setCol({intensity:+r.value},true)});
+  }
+  function openPalette(btn){
+    var id=btn.getAttribute("data-colpick"), p=$("palette");
+    if(pickCol===id&&!p.hidden){closePalette();return}
+    pickCol=id;renderPalette();
+    var r=btn.getBoundingClientRect();p.style.top=(r.bottom+6)+"px";p.style.left=Math.max(8,Math.min(r.left,window.innerWidth-240))+"px";p.hidden=false;
+  }
+  var savedCfg=null;
+  function setCol(patch,persist){
+    var id=pickCol;if(!id||!DB)return;
+    if(!savedCfg)savedCfg=cfg;
+    var cols=(cfg.columns||DEFAULT_CFG.columns).map(function(c){return c.id===id?Object.assign({},c,patch):c});
+    cfg={columns:cols};render();
+    if(!persist)return;
+    var prev=savedCfg;savedCfg=null;
+    DB.doc("config/board").update({columns:cols}).catch(function(){cfg=prev;render()});
+  }
+  function pickColor(color){setCol({color:color},true);if(pickCol)renderPalette()}
+  document.addEventListener("click",function(e){
+    var sw=e.target.closest&&e.target.closest("[data-colpick]");if(sw){e.stopPropagation();openPalette(sw);return}
+    var pk=e.target.closest&&e.target.closest("[data-pick]");if(pk){pickColor(pk.getAttribute("data-pick"));return}
+    if(!$("palette").hidden&&!e.target.closest("#palette"))closePalette();
+  },true);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape"&&!$("palette").hidden)closePalette()});
+  window.addEventListener("scroll",closePalette,true);
+  var dragId=null;
+  document.addEventListener("dragstart",function(e){
+    var n=e.target.closest&&e.target.closest(".board [data-open]");if(!n||!DB){if(n)e.preventDefault();return}
+    dragId=n.getAttribute("data-open");n.classList.add("dragging");
+    try{e.dataTransfer.setData("text/plain",dragId);e.dataTransfer.effectAllowed="move"}catch(x){}
+  });
+  document.addEventListener("dragend",function(){dragId=null;Array.prototype.forEach.call(document.querySelectorAll(".dragging,.drop-over"),function(x){x.classList.remove("dragging","drop-over")})});
+  document.addEventListener("dragover",function(e){
+    var c=dragId&&e.target.closest&&e.target.closest(".cell[data-col]");if(!c)return;
+    e.preventDefault();try{e.dataTransfer.dropEffect="move"}catch(x){}
+    Array.prototype.forEach.call(document.querySelectorAll(".drop-over"),function(x){if(x!==c)x.classList.remove("drop-over")});c.classList.add("drop-over");
+  });
+  document.addEventListener("drop",function(e){
+    var c=dragId&&e.target.closest&&e.target.closest(".cell[data-col]");if(!c)return;
+    e.preventDefault();var id=dragId, col=c.getAttribute("data-col");dragId=null;
+    var d=ideas.filter(function(x){return x.id===id})[0];if(!d||statusOf(d)===col){render();return}
+    var patch={status:col,updated:new Date().toISOString()};
+    ideas=ideas.map(function(x){return x.id===id?Object.assign({},x,patch):x});render();
+    DB.doc("ideas/"+id).update(patch).catch(function(){ideas=ideas.map(function(x){return x.id===id?d:x});render()});
+  });
+
+  render();
+  if(!window.claude||!window.claude.use){loaded=true;render();return}
+  window.claude.use("db").then(function(db){
+    if(!db){$("main").innerHTML='<div class="state"><h2>Board unavailable here</h2><div>Open this page signed in to claude.ai to see your ideas.</div></div>';return}
+    DB=db;
+    db.doc("config/board").onSnapshot(function(s){var d=s.exists&&s.data();if(!s.exists&&s.metadata&&s.metadata.fromCache)return;cfgKnown=true;cfgExists=!!s.exists;if(d){if(d.columns&&d.columns.length)cfg={columns:d.columns};BOARD=safeUrl(d.url)||""}render()},function(){});
+    db.collection("ideas").onSnapshot(function(s){ideas=s.docs.map(function(d){var o=Object.assign({},d.data());o.id=d.id;return o});loaded=true;render()},
+      function(){loaded=true;$("main").innerHTML='<div class="state"><h2>Couldn\'t load ideas</h2><div>Reload the page to try again.</div></div>'});
+  });
+})();
+</script>

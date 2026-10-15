@@ -5,7 +5,9 @@
   Before adding, updating, linking or picking up an idea, read the document config/instructions
   (ArtifactData tool, action get, collection "config", doc_id "instructions", url = this artifact's link)
   and follow it. Cards are in collection "ideas"; columns, nextNum and the board's own link are in config/board.
-  Setting up: publish this file with capabilities {"db":{"rules":[{"path":"","read":"admin","write":"owner"}]}};
+  Setting up: publish this file with capabilities {"db":{"rules":[{"path":"","read":"admin","write":"owner"}]}}.
+  If the owner gives the board a name (e.g. "Work Ideas"), first replace "Idea Board" in the <title> and the <h1 id="board-name"> with it,
+  so the gallery, the tab and the page all show that name. Owners can have several boards; the name tells them apart.
   the owner then taps "Set up board" on the page, which writes config/board and config/instructions.
 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -160,7 +162,7 @@ button.openlink.ghost{border:1px solid var(--line)}
   <header>
     <div>
       <div class="titlerow">
-        <h1>Idea Board</h1>
+        <h1 id="board-name">Idea Board</h1>
         <button class="help" id="help-btn" type="button" aria-expanded="false" aria-controls="help-pop" aria-label="How to use the board">?</button>
         <div class="how" id="help-pop" hidden>
           <div>Tap a note to read its brief or change its column, tags and link. To add ideas or edit briefs, ask Claude in any chat:</div>
@@ -182,7 +184,7 @@ button.openlink.ghost{border:1px solid var(--line)}
 This board belongs to the owner and holds ideas as cards. Follow this whenever the owner asks to add, pick up, update, link or move an idea.
 
 WHERE THINGS LIVE
-- Board artifact: the artifact this text is stored in. Its link is also in config/board.url when the owner set it.
+- Board artifact: the artifact this text is stored in. Its name is in config/board.name; the owner may have several boards, so match the name they use. If config/board.url is empty, set it to this artifact's link (claude.ai/artifact/...) the first time you write; the board uses it in its New chat text.
 - Database (ArtifactData tool, the board's url): collection 'ideas' (one document per card), document 'config/board' (columns, nextNum), document 'config/instructions' (this text).
 - Always read config/board and the target card before writing. Pin every write with if_version.
 
@@ -228,11 +230,11 @@ NEVER
   var cfg=DEFAULT_CFG, ideas=[], loaded=false, tagFilter=null, tab=null;
   try{tagFilter=localStorage.getItem("ib.tag")||null;tab=localStorage.getItem("ib.tab")||null}catch(e){}
   var $=function(id){return document.getElementById(id)};
-  var BOARD="", cfgKnown=false, cfgExists=false;
+  var NAME=document.getElementById("board-name").textContent.trim(), BOARD="", cfgKnown=false, cfgExists=false;
   function starter(d){
     var cols=cfg.columns||DEFAULT_CFG.columns, n=d.num!=null?d.num:d.id, url=safeUrl(d.url);
     var col=(cols.filter(function(c){return c.id===statusOf(d)})[0]||{}).label||d.status;
-    return "Picking up idea #"+n+" from my Idea Board"+(BOARD?": "+BOARD:"")+"\n"+
+    return "Picking up idea #"+n+" from my "+NAME+(BOARD?": "+BOARD:"")+"\n"+
       (url?"Earlier chat: "+url+"\n":"")+
       "Column: "+col+((d.tags||[]).length?" · tags: "+d.tags.join(", "):"")+"\n\n"+
       "Start from the brief below. Treat the decisions as settled unless I reopen them. When we decide something new, offer to update #"+n+"'s brief on the board and link this chat to the card.\n\n"+
@@ -288,14 +290,13 @@ NEVER
   function setupHtml(){
     return'<div class="state setup"><h2>Set up your Idea Board</h2>'+
       '<div>This adds the columns and the instructions Claude follows when it adds or updates your ideas. Your board stays private to you.</div>'+
-      '<label for="setup-url">This board\'s link (optional, from Share, then Copy link)<input id="setup-url" type="url" autocomplete="off" placeholder="https://claude.ai/artifact/..."></label>'+
       '<button class="save" id="setup-go" type="button">Set up board</button><span class="savemsg" id="setup-msg" aria-live="polite"></span></div>';
   }
   function doSetup(){
-    if(!DB)return;var url=safeUrl($("setup-url").value.trim())||"";var text=$("default-instructions").textContent.trim();
+    if(!DB)return;var text=$("default-instructions").textContent.trim();
     $("setup-go").disabled=true;$("setup-msg").textContent="Setting up\u2026";
     DB.doc("config/instructions").set({title:"How Claude maintains this Idea Board",version:1,text:text}).then(function(){
-      return DB.doc("config/board").set({columns:DEFAULT_CFG.columns,nextNum:1,url:url,schema:"See config/instructions for the full rules on adding and updating cards. Read it before any write."});
+      return DB.doc("config/board").set({name:$("board-name").textContent.trim(),columns:DEFAULT_CFG.columns,nextNum:1,url:"",schema:"See config/instructions for the full rules on adding and updating cards. Read it before any write."});
     }).then(function(){},function(e){$("setup-go").disabled=false;$("setup-msg").textContent=(e&&e.code==="invalid_argument")?"Only the board's owner can set it up.":"Setup didn't finish. Try again."});
   }
   function briefHtml(t){
@@ -473,7 +474,7 @@ NEVER
   window.claude.use("db").then(function(db){
     if(!db){$("main").innerHTML='<div class="state"><h2>Board unavailable here</h2><div>Open this page signed in to claude.ai to see your ideas.</div></div>';return}
     DB=db;
-    db.doc("config/board").onSnapshot(function(s){var d=s.exists&&s.data();if(!s.exists&&s.metadata&&s.metadata.fromCache)return;cfgKnown=true;cfgExists=!!s.exists;if(d){if(d.columns&&d.columns.length)cfg={columns:d.columns};BOARD=safeUrl(d.url)||""}render()},function(){});
+    db.doc("config/board").onSnapshot(function(s){var d=s.exists&&s.data();if(!s.exists&&s.metadata&&s.metadata.fromCache)return;cfgKnown=true;cfgExists=!!s.exists;if(d){if(d.columns&&d.columns.length)cfg={columns:d.columns};BOARD=safeUrl(d.url)||"";if(d.name&&typeof d.name==="string"){NAME=d.name;$("board-name").textContent=d.name;document.title=d.name}}render()},function(){});
     db.collection("ideas").onSnapshot(function(s){ideas=s.docs.map(function(d){var o=Object.assign({},d.data());o.id=d.id;return o});loaded=true;render()},
       function(){loaded=true;$("main").innerHTML='<div class="state"><h2>Couldn\'t load ideas</h2><div>Reload the page to try again.</div></div>'});
   });

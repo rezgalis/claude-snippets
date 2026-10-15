@@ -10,13 +10,13 @@ A private kanban board for ideas, built as a claude.ai artifact.
 
 ## Setup
 
-1. In a new Claude chat, attach `idea-board.html` and send:
-   > Publish this as an artifact with private storage, exactly as the note at the top of the file says.
+1. In a new Claude chat, attach `idea-board.html` and send (change the name if you like, e.g. for separate work and personal boards):
+   > Publish this as my "Idea Board" artifact with private storage, exactly as the note at the top of the file says.
 2. Open the board and tap **Set up board**.
 
 ## Use
 
-- **Add:** "Add this to my Idea Board" (paste the board's link the first few times).
+- **Add:** "Add this to my Idea Board" (use your board's name, and paste its link the first few times).
 - **Pick up:** "Pick up #3 from my Idea Board", or open the note and tap **New chat**.
 - **Update:** "Rewrite #3's brief with what we decided today".
 
